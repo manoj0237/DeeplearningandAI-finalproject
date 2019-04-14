@@ -4,11 +4,12 @@ import pickle
 
 from collaborative_deep_learning import *
 from linucb import *
+from wide_deep import *
 
 
 pretrained = False
 
-models = [('LinUCB', LinUCB()), ('DeepCollab', DeepCollab())]
+models = [('hLinUCB', HLinUCB()), ('DeepCollab', DeepCollab()), ('WideDeep', WideDeep())]
 # ('Collab', Collab())
 # ('DeepQ', DeepQ())
 
