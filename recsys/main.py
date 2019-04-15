@@ -1,4 +1,4 @@
-from sklearn.metrics import average_precision_score, confusion_matrix, recall_score
+from sklearn.metrics import average_precision_score, confusion_matrix, recall_score, precision_score
 import numpy as np
 import pickle
 
@@ -64,6 +64,7 @@ for index, row in enumerate(test):
 
 mAP = {}
 total_recall = {}
+total_precision = {}
 
 for name in average_precision.keys():
     print(name, 'Evaluation')
@@ -74,6 +75,9 @@ for name in average_precision.keys():
 
     total_recall[name] = recall_score(scoring_test[name], replay_test[name])
     print('recall', total_recall[name])
+
+    total_precision[name] = precision_score(scoring_test[name], replay_test[name])
+    print('precision', total_precision[name])
 
 pickle.dump(mAP, open('mAP.pkl', 'w'))
 pickle.dump(total_recall, open('recall.pkl', 'w'))

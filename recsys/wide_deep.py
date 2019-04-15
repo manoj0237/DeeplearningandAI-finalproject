@@ -7,9 +7,9 @@ class WideDeep(BaseModel):
     def __init__(self):
         self.model = None
 
-    def fit(self, train):
+    def fit(self, train, y):
         pass
 
-    def predict(self):
+    def predict(self, test):
         pass
 
