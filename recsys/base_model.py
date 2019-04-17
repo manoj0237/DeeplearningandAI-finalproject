@@ -4,5 +4,5 @@ class BaseModel:
     def fit(self, train, y):
         pass
 
-    def predict(self, test):
+    def predict(self, test, n):
         pass
