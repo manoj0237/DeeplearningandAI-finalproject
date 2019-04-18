@@ -1,13 +1,11 @@
 import numpy as np
 
-from base_model import BaseModel
-
 
 # References:
 # https://github.com/huazhengwang/BanditLib/blob/master/lib/hLinUCB.py
 # Huazheng Wang, Qingyun Wu and Hongning Wang. Learning Hidden Features for Contextual Bandits.
 # The 25th ACM International Conference on Information and Knowledge Management (CIKM 2016), p1633-1642, 2016.
-class HLinUCB(BaseModel):
+class HLinUCB:
     def __init__(self, alpha_a, alpha_u, lam1, lam2, context_columns, user_column, decisions_column):
         self.alpha_a = alpha_a
         self.alpha_u = alpha_u
