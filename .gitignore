@@ -2,3 +2,9 @@
 *.pyc
 *.txt
 logs/
+
+glove6B/*
+
+# File too large
+raw_tokenized_features.csv
+final_scaled_book_featurs.csv
