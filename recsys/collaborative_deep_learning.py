@@ -1,10 +1,9 @@
 import numpy as np
+from time import time
 
-from keras.layers import Embedding, Flatten, Dense, SimpleRNN, LSTM, Input, Concatenate
-from keras.models import Model
-from keras.models import load_model
-
-from tensorflow.keras.callbacks import EarlyStopping
+from keras.layers import Dense, Input, Concatenate
+from keras.models import Model, load_model
+from keras.callbacks import EarlyStopping, TensorBoard
 
 
 # References
@@ -30,6 +29,8 @@ class DeepCollab:
         self.cdae_weights = False
 
     def fit(self, train, y, y_noisy):
+        tensorboard = TensorBoard(log_dir="logs/0/{}".format(time()))
+
         user_id = train[self.user_id_column][0]
         features = train[self.feature_columns]
 
@@ -77,7 +78,7 @@ class DeepCollab:
                                  epochs=5,
                                  batch_size=32,
                                  validation_split=0.2,
-                                 callbacks=[EarlyStopping()])
+                                 callbacks=[EarlyStopping(), tensorboard])
 
             self.cdae_model.save_weights('cdae_weights.h5')
             self.cdae_weights = True
@@ -89,7 +90,7 @@ class DeepCollab:
                                  epochs=100,
                                  batch_size=32,
                                  validation_split=0.2,
-                                 callbacks=[EarlyStopping()])
+                                 callbacks=[EarlyStopping(), tensorboard])
 
         else:
 
@@ -97,7 +98,7 @@ class DeepCollab:
                      epochs=100,
                      batch_size=32,
                      validation_split=0.2,
-                     callbacks=[EarlyStopping()])
+                     callbacks=[EarlyStopping(), tensorboard])
 
     def evaluate(self, test, user_id, y, y_noisy):
         user_id = test[self.user_id_column][0]
