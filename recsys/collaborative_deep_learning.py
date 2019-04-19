@@ -6,11 +6,14 @@ from keras.models import Model, load_model
 from keras.callbacks import EarlyStopping, TensorBoard
 
 
-# References
+# References:
+# Wu, Yao, et al. "Collaborative denoising auto-encoders for top-n recommender systems."
+# Proceedings of the Ninth ACM International Conference on Web Search and Data Mining. ACM, 2016.
 # https://blog.keras.io/building-autoencoders-in-keras.html
 # https://keras.io/examples/mnist_denoising_autoencoder/
 class DeepCollab:
-    def __init__(self, batch_size, hidden_layers, step_factor, cdae, user_id_column, user_features, feature_columns=None):
+    def __init__(self, batch_size, hidden_layers, step_factor, cdae, user_id_column,
+                 user_features, feature_columns=None):
         assert(hidden_layers in [1, 3], 'Invalid number of hidden layers')
 
         self.batch_size = batch_size
@@ -29,7 +32,7 @@ class DeepCollab:
         self.cdae_weights = False
 
     def fit(self, train, y, y_noisy):
-        tensorboard = TensorBoard(log_dir="logs/0/{}".format(time()))
+        tensorboard = TensorBoard(log_dir="logs/c/{}".format(time()))
 
         user_id = train[self.user_id_column][0]
         features = train[self.feature_columns]
@@ -76,7 +79,7 @@ class DeepCollab:
 
             self.autoencoder.fit([y_noisy, features], y,
                                  epochs=5,
-                                 batch_size=32,
+                                 batch_size=self.batch_size,
                                  validation_split=0.2,
                                  callbacks=[EarlyStopping(), tensorboard])
 
@@ -88,7 +91,7 @@ class DeepCollab:
 
             self.autoencoder.fit([y_noisy, features], y,
                                  epochs=100,
-                                 batch_size=32,
+                                 batch_size=self.batch_size,
                                  validation_split=0.2,
                                  callbacks=[EarlyStopping(), tensorboard])
 
@@ -96,7 +99,7 @@ class DeepCollab:
 
             self.autoencoder.fit(y_noisy, y,
                      epochs=100,
-                     batch_size=32,
+                     batch_size=self.batch_size,
                      validation_split=0.2,
                      callbacks=[EarlyStopping(), tensorboard])
 
@@ -139,7 +142,3 @@ class DeepCollab:
             new_predictions.pop(p)
 
         return top_n
-
-
-
-

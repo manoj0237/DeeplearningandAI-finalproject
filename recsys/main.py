@@ -32,7 +32,7 @@ for name, model in models:
     if pretrained:
         model.load(name + '.h5')
     else:
-        model.fit(train)
+        model.fit(train)  # TODO this is different for each model
     average_precision[name] = []
     replay_test[name] = []
     scoring_test[name] = []
@@ -40,23 +40,23 @@ for name, model in models:
 ########################
 # Evaluate the models
 ########################
+# TODO This needs to do both replay and top n
 
+def evaluate_user_predictions(ratings, user_id, predictions):
+    actual = []
+    pred = []
+    for p in predictions:
+        rating = ratings.loc[ratings['user_id'] == user_id & ratings['book_id'] == p]['rating']
+        if len(rating) > 0:
+            actual.append(rating[0])
+            pred.append(1)
 
-# TODO this is pseudocode, not implementation
-def evaluate(test, pred):
-    r = []
-    s = []
-    for prediction in pred:
-        if pred in test:
-            r.append(prediction)
-            s.append(test)
-    return s, r
-
+    return actual, pred
 
 for index, row in enumerate(test):
     for name, model in models:
         predictions = model.predict(row)
-        scoring, replay = evaluate(test[index], predictions)
+        scoring, replay = evaluate_user_predictions(test[index], predictions)
         ap = average_precision_score(scoring, replay)
         average_precision[name].append(ap)
         scoring_test[name].append(scoring)
