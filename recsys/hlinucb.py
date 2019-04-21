@@ -2,9 +2,9 @@ import numpy as np
 
 
 # References:
-# https://github.com/huazhengwang/BanditLib/blob/master/lib/hLinUCB.py
 # Huazheng Wang, Qingyun Wu and Hongning Wang. Learning Hidden Features for Contextual Bandits.
 # The 25th ACM International Conference on Information and Knowledge Management (CIKM 2016), p1633-1642, 2016.
+# https://github.com/huazhengwang/BanditLib/blob/master/lib/hLinUCB.py
 class HLinUCB:
     def __init__(self, alpha_a, alpha_u, lam1, lam2, context_columns, user_column, decisions_column):
         self.alpha_a = alpha_a
@@ -63,6 +63,17 @@ class HLinUCB:
             predictions.pop(prediction)
 
         return top_n
+
+    def predict_proba(self, test):
+        x = test[self.context_columns]
+        user = test[self.user_column]
+        predictions = {}
+
+        # Calculate predicted value for each available arm
+        for arm in self.arms:
+            predictions[arm], self.user_coef = self.model[arm].predict(x, user, self.user_coef)
+
+        return predictions
 
 
 class HRidge:
