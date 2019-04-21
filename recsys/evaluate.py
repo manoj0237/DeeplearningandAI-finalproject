@@ -66,9 +66,9 @@ def top_10_binary_results(evaluation_data):
 
     aps = []
     not_scored = []
+    counter = 0
     for u in users:
         results = evaluation_data[evaluation_data['user_id'] == u]
-        print(results.head())
         books = results['book_id'].tolist()
         probs = np.asarray(results['pred_proba'])
         top_10 = np.argsort(probs)[:10]
@@ -80,9 +80,17 @@ def top_10_binary_results(evaluation_data):
                 top_books.append(results[results['book_id'] == books[i]]['prediction'].values)
                 top_ratings.append(results[results['book_id'] == books[i]]['binary_rating'].values)
         if len(top_ratings) > 0:
-            aps.append(average_precision_score(top_ratings, top_books))
+            ap = average_precision_score(np.array(top_ratings), np.array(top_books))
+            if np.isnan(ap):
+                aps.append(0)
+            else:
+                aps.append(ap)
         else:
             not_scored.append(u)
+
+        if counter % 500 == 0:
+            print(str(counter), 'users evaluated')
+        counter +=1
 
     mAP = np.asarray(aps).mean()
     return mAP, len(not_scored)
