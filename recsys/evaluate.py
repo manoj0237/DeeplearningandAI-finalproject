@@ -40,8 +40,8 @@ def replay_5star_results(evaluation_data):
     Confusion matrix, precision and recall
     """
     cfm = confusion_matrix(evaluation_data['rating'], evaluation_data['prediction'])
-    precision = precision_score(evaluation_data['rating'], evaluation_data['prediction'])
-    recall = recall_score(evaluation_data['rating'], evaluation_data['prediction'])
+    precision = precision_score(evaluation_data['rating'], evaluation_data['prediction'], average='weighted')
+    recall = recall_score(evaluation_data['rating'], evaluation_data['prediction'], average='weighted')
     return cfm, precision, recall
 
 
@@ -120,33 +120,69 @@ def top_10_5star_results(evaluation_data):
     aps = []
     binary_aps = []
     not_scored = []
+    counter = 0
     for u in users:
         results = evaluation_data[evaluation_data['user_id'] == u]
         books = results['book_id'].tolist()
         probs = np.asarray(results['pred_proba'])
         top_10 = np.argsort(probs)[:10]
-        top_books = []
-        top_ratings = []
+        true = {1: [], 2: [], 3: [], 4: [], 5: []}
+        pred = {1: [], 2: [], 3: [], 4: [], 5: []}
         top_binary_books = []
         top_binary_ratings = []
+        matches = 0
         for i in top_10:
-            rating = results[results['book_id'] == books[i]]['binary_rating'].values
-            if rating >= 0:
-                p = results[results['book_id'] == books[i]]['prediction'].values
-                r = results[results['book_id'] == books[i]]['binary_rating'].values
+            rating = results[results['book_id'] == books[i]]['rating'].values
+            
+            if rating > 0:
+                matches += 1
+                p = int(results[results['book_id'] == books[i]]['prediction'].values)
+                r = int(results[results['book_id'] == books[i]]['rating'].values)
+                if p == r:
+                    true[r].append(1)
+                    pred[r].append(1)
+                    for i in range(1, 6):
+                        if i != r:
+                            true[i].append(0)
+                            pred[i].append(0)
+                else:
+                    true[r].append(1)
+                    pred[r].append(0)
+                    true[p].append(0)
+                    pred[p].append(1)
+                    for i in range(1, 6):
+                        if i != r and i != p:
+                            true[i].append(0)
+                            pred[i].append(0)
+                
                 pb = 1 if p > 3 else 0
                 rb = 1 if r > 3 else 0
-                top_books.append(p)
-                top_ratings.append(r)
+
                 top_binary_books.append(pb)
                 top_binary_ratings.append(rb)
-
-        if len(top_ratings) > 0:
-            aps.append(average_precision_score(top_ratings, top_books))
-            binary_aps.append(average_precision_score(top_binary_ratings, top_binary_books))
+                
+        if matches > 0:
+            ap_1 = average_precision_score(true[1], pred[1]) if len(true[1]) > 0 else 0
+            ap_2 = average_precision_score(true[2], pred[2]) if len(true[2]) > 0 else 0
+            ap_3 = average_precision_score(true[3], pred[3]) if len(true[3]) > 0 else 0
+            ap_4 = average_precision_score(true[4], pred[4]) if len(true[4]) > 0 else 0
+            ap_5 = average_precision_score(true[5], pred[5]) if len(true[5]) > 0 else 0
+            weighted_ap = len(true[1])/matches * ap_1 + len(true[2])/matches * ap_2 + len(true[3])/matches * ap_3 + len(true[4])/matches * ap_4 + len(true[5])/matches * ap_5
+            if np.isnan(weighted_ap):
+                weighted_ap = 0
+            aps.append(weighted_ap)
+            
+            b_ap = average_precision_score(top_binary_ratings, top_binary_books)
+            if np.isnan(b_ap):
+                b_ap = 0
+            binary_aps.append(b_ap)
+            
         else:
             not_scored.append(u)
+        if counter % 500 == 0:
+            print(str(counter), 'users evaluated')
+        counter += 1
 
     mAP = np.asarray(aps).mean()
     binary_mAP = np.asarray(binary_aps).mean()
-    return mAP, binary_mAP, len(not_scored)
+    return aps, mAP, binary_mAP, binary_aps, len(not_scored)

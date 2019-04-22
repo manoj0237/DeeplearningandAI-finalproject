@@ -1,4 +1,9 @@
 import numpy as np
+import operator
+import warnings
+
+warnings.simplefilter("error", RuntimeWarning)
+
 
 
 # References:
@@ -36,6 +41,7 @@ class HLinUCB:
 
         num_features = x.shape[1]
 
+        counter = 0
         for arm in self.arms:
 
             # Initialize ridge regression
@@ -43,35 +49,70 @@ class HLinUCB:
 
             # Train on history
             idx = np.where(decisions == arm)
-            self.user_coef = self.model[arm].fit(x[idx], y[idx], self.user_list[idx], self.user_coef, self.lam2)
+            if len(idx[0]) > 0:
+                arm_x = x[idx]
+                arm_y = y[idx]
+                arm_users = users[idx]
+
+                self.model[arm].fit(arm_x, arm_y, arm_users, self.user_coef)
+
+            counter +=1
+            if counter % 100 == 0:
+                print(str(counter), 'arms trained')
+
 
     def predict(self, test, n):
         # Separate the inputs
-        x = test[self.context_columns]
+        x = np.asarray(test[self.context_columns])
         user = test[self.user_column]
-        predictions = {}
+        predictions = []
+        for index, row in enumerate(user):
+            user_predictions = {}
 
-        # Calculate predicted value for each available arm
-        for arm in self.arms:
-            predictions[arm], self.user_coef = self.model[arm].predict(x, user, self.user_coef)
+            # Calculate predicted value for each available arm
+            for arm in self.arms:
+                user_predictions[arm] = self.model[arm].predict(x[index], row, self.user_coef)
 
-        # https://stackoverflow.com/questions/268272/getting-key-with-maximum-value-in-dictionary
-        top_n = []
-        for _ in range(n):
-            prediction = max(predictions, key=predictions.get)
-            top_n.append(prediction)
-            predictions.pop(prediction)
+            # https://stackoverflow.com/questions/268272/getting-key-with-maximum-value-in-dictionary
+            top_n = []
+            for _ in range(n):
+                prediction = max(user_predictions, key=user_predictions.get)
+                top_n.append(prediction)
+                user_predictions.pop(prediction)
 
-        return top_n
+            predictions.append(top_n)
+
+        return predictions
 
     def predict_proba(self, test):
-        x = test[self.context_columns]
-        user = test[self.user_column]
-        predictions = {}
+        x = np.asarray(test[self.context_columns])
+        user = test[self.user_column].values
+        predictions = []
+        for index, row in enumerate(user):
+            user_predictions = {}
 
-        # Calculate predicted value for each available arm
-        for arm in self.arms:
-            predictions[arm], self.user_coef = self.model[arm].predict(x, user, self.user_coef)
+            # Calculate predicted value for each available arm
+            for arm in self.arms:
+                user_predictions[arm] = self.model[arm].predict(x[index], row, self.user_coef)
+            predictions.append(user_predictions)
+
+        return predictions
+    
+    def predict_proba_replay(self, test, ratings):
+        x = np.asarray(test[self.context_columns])
+        user = test[self.user_column].values
+        predictions = []
+        for index, row in enumerate(user):
+            user_predictions = {}
+
+            user_arms = ratings[ratings['user_id'] == row]['book_id'].tolist()
+
+            # Calculate predicted value for each available arm
+            for arm in user_arms:
+                user_predictions[arm] = self.model[arm].predict(x[index], row, self.user_coef)
+            predictions.append(user_predictions)
+            if len(predictions) % 500 == 0:
+                print(len(predictions), 'users predicted')
 
         return predictions
 
@@ -86,7 +127,7 @@ class HRidge:
         # Initialize coefficients
         self.c = lam1 * np.identity(self.num_features)
         self.d = np.zeros(self.num_features)
-        self.v = np.zeros(self.num_features)
+        self.v = np.random.normal(0, 1, self.num_features)
 
     def fit(self, x, y, users, user_coef):
         # If arm has training data
@@ -105,12 +146,11 @@ class HRidge:
                 user_coef[user].fit(x[user_idx], y[user_idx], self.v)
 
                 # Update c, d, v
-                self.c = self.c + np.dot(user_coef[user].theta, user_coef[user].T)
-                self.d = self.d + np.dot(user_coef[user].theta, (y[user_idx] - np.dot(x.T, user_coef[user].theta)))
+                self.c = self.c + np.dot(user_coef[user].theta, user_coef[user].theta)
+                d_update = (user_coef[user].theta * (y[user_idx] - np.dot(x[user_idx], user_coef[user].theta.reshape(-1, 1)))).T
+                self.d = self.d + d_update.T.reshape(1, -1)[0]
                 self.v = np.dot(np.linalg.inv(self.c), self.d)
 
-        # Return the updated dictionary of user models
-        return user_coef
 
     def predict(self, x, user, user_coef):
 
@@ -119,15 +159,22 @@ class HRidge:
             user_coef[user] = UserLatent(self.alpha_u, self.lam2, self.num_features)
 
         # Calculate the ridge regression predicted value, latent features modifier, and exploration modifier
-        ridge = np.dot(np.inner(x, self.v).T, user_coef[user].theta)
-        latent = self.alpha_u * np.sqrt(np.dot(np.dot(np.inner(x, self.v),
-                                                      np.linalg.inv(user_coef[user].a)), np.inner(x, self.v).T))
-        explore = self.alpha_a * np.sqrt(np.dot(np.dot(user_coef[user].theta,
-                                                       np.linalg.inv(self.c)), user_coef[user].theta.T))
+        ridge = np.dot(self.v, user_coef[user].theta)
+
+        latent = 0
+
+        # If no latent features are found, set latent to 0
+        try:
+            latent = self.alpha_u * np.sqrt(np.dot(np.dot(self.v, np.linalg.inv(user_coef[user].a)), self.v))
+        except RuntimeWarning:
+            pass
+
+        explore = self.alpha_a * np.sqrt(np.dot(np.dot(x.T, np.linalg.inv(self.c)), x))
+
         prediction = ridge + latent + explore
 
         # Return predicted value and updated dictionary of user models
-        return prediction, user_coef
+        return prediction
 
 
 class UserLatent:
@@ -142,6 +189,6 @@ class UserLatent:
     def fit(self, x, y, v):
 
         # Update a, b, theta for the user
-        self.a = self.a + np.dot(np.inner(x, v), np.inner(x, v).T)
-        self.b = self.b + np.dot(np.inner(x, v), y)
+        self.a = self.a + np.dot(v, v)
+        self.b = self.b + y * np.dot(x, v)
         self.theta = np.dot(np.linalg.inv(self.a), self.b)

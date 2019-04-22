@@ -2,7 +2,6 @@
 .idea/
 *.pyc
 *.txt
-logs/
 
 glove6B/*
 
