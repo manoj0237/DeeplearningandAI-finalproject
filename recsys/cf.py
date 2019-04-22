@@ -14,7 +14,7 @@ from recsys.evaluate import top_10_5star_results
 class CollaborativeFiltering:
 
     def __init__(self):
-        prod = False
+        prod = True
         self.ml = pd.read_csv("ratings1k.csv",
                          header=0,
                          dtype={"user_id": np.int32, "book_id": np.int32, "rating": np.float32},
@@ -32,6 +32,11 @@ class CollaborativeFiltering:
                          names=("user_id", "book_id", "rating"))
             self.trainset = Dataset.load_from_df(self.trainset_df[["user_id", "book_id", "rating"]],
                                          surprise.Reader(rating_scale=(1, 5)))
+            raw_trainset_list = self.trainset_df.values.tolist()
+
+            raw_trainset_list = [(item[0], item[1], item[2], None) for item in raw_trainset_list]
+
+            self.trainset = self.trainset.construct_trainset(raw_trainset_list)
 
             self.testset_df = pd.read_csv(data_dir + "/test_ratings_set.csv",
                                        header=0,
@@ -39,6 +44,12 @@ class CollaborativeFiltering:
                                        names=("user_id", "book_id", "rating"))
             self.testset = Dataset.load_from_df(self.testset_df[["user_id", "book_id", "rating"]],
                                              surprise.Reader(rating_scale=(1, 5)))
+
+            raw_testset_list = self.testset_df.values.tolist()
+
+            raw_testset_list = [(item[0], item[1], item[2], None) for item in raw_testset_list]
+            self.testset = self.testset.construct_testset(raw_testset_list)
+
 
         self.algo = SVD()
         self._fit()
@@ -52,14 +63,13 @@ class CollaborativeFiltering:
         pred_list =[]
         for uid, iid, true_r, est, _ in self.predictions:
             pred_list.append([uid, iid, true_r, est])
-        df_for_eval = pd.DataFrame(pred_list, columns=['user_id', 'book_id', 'iid', 'est'])
+        df_for_eval = pd.DataFrame(pred_list, columns=['user_id', 'book_id', 'rating', 'est'])
         df_for_eval['pred_proba'] = df_for_eval['est'].apply(lambda x: x/5)
         df_for_eval['prediction'] = df_for_eval['est'].apply(lambda x: round(x))
-        df_for_eval['rating'] = df_for_eval['iid'].apply(lambda x: 1 if(x >= 4) else 0)
-        df_for_eval= df_for_eval.drop(columns=['iid', 'est'])
+        # df_for_eval['rating'] = df_for_eval['iid'].apply(lambda x: 1 if(x >= 4) else 0)
+        df_for_eval= df_for_eval.drop(columns=[ 'est'])
         print(df_for_eval)
         print(top_10_5star_results(df_for_eval))
-
 
     def predict_book_rating(self, user_id=80, item_id=34):
         true_rating = 0
