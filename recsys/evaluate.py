@@ -45,7 +45,7 @@ def replay_5star_results(evaluation_data):
     return cfm, precision, recall
 
 
-def top_10_binary_results(evaluation_data):
+def top_n_binary_results(evaluation_data, n=10):
     """
     Evaluates the top 10 recommendations for each user.
     To be used for predictions for all books not in the user's training data.
@@ -71,7 +71,7 @@ def top_10_binary_results(evaluation_data):
         results = evaluation_data[evaluation_data['user_id'] == u]
         books = results['book_id'].tolist()
         probs = np.asarray(results['pred_proba'])
-        top_10 = np.argsort(probs)[:10]
+        top_10 = np.argsort(probs)[:n]
         top_books = []
         top_ratings = []
         for i in top_10:
@@ -97,7 +97,7 @@ def top_10_binary_results(evaluation_data):
 
 
 
-def top_10_5star_results(evaluation_data):
+def top_n_5star_results(evaluation_data, n=10):
     """
     Evaluates the top 10 recommendations for each user.
     To be used for predictions for all books not in the user's training data.
@@ -125,7 +125,7 @@ def top_10_5star_results(evaluation_data):
         results = evaluation_data[evaluation_data['user_id'] == u]
         books = results['book_id'].tolist()
         probs = np.asarray(results['pred_proba'])
-        top_10 = np.argsort(probs)[:10]
+        top_10 = np.argsort(probs)[:n]
         true = {1: [], 2: [], 3: [], 4: [], 5: []}
         pred = {1: [], 2: [], 3: [], 4: [], 5: []}
         top_binary_books = []

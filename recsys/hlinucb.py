@@ -5,7 +5,6 @@ import warnings
 warnings.simplefilter("error", RuntimeWarning)
 
 
-
 # References:
 # Huazheng Wang, Qingyun Wu and Hongning Wang. Learning Hidden Features for Contextual Bandits.
 # The 25th ACM International Conference on Information and Knowledge Management (CIKM 2016), p1633-1642, 2016.
@@ -47,18 +46,18 @@ class HLinUCB:
             # Initialize ridge regression
             self.model[arm] = HRidge(self.alpha_a, self.alpha_u, self.lam1, self.lam2, num_features)
 
+        for index, row in enumerate(decisions):
             # Train on history
-            idx = np.where(decisions == arm)
-            if len(idx[0]) > 0:
-                arm_x = x[idx]
-                arm_y = y[idx]
-                arm_users = users[idx]
 
-                self.model[arm].fit(arm_x, arm_y, arm_users, self.user_coef)
+            arm_x = x[index]
+            arm_y = y[index]
+            arm_users = users[index]
+
+            self.model[row].fit(arm_x, arm_y, arm_users, self.user_coef)
 
             counter +=1
-            if counter % 100 == 0:
-                print(str(counter), 'arms trained')
+            if counter % 1000 == 0:
+                print(str(counter), 'rows trained')
 
 
     def predict(self, test, n):
@@ -127,29 +126,29 @@ class HRidge:
         # Initialize coefficients
         self.c = lam1 * np.identity(self.num_features)
         self.d = np.zeros(self.num_features)
-        self.v = np.random.normal(0, 1, self.num_features)
+        self.v = np.random.normal(0, 1, self.num_features) # np.ones(self.num_features)
 
-    def fit(self, x, y, users, user_coef):
+    def fit(self, x, y, user, user_coef):
         # If arm has training data
         if len(x) > 1:
+            #
+            # user_list = list(set(users))
+            #
+            # for user in user_list:
 
-            user_list = list(set(users))
+            # Initialize model of latent features for each user
+            if user not in user_coef.keys():
+                user_coef[user] = UserLatent(self.alpha_u, self.lam2, self.num_features)
 
-            for user in user_list:
+            # Fit the user models
 
-                # Initialize model of latent features for each user
-                if user not in user_coef.keys():
-                    user_coef[user] = UserLatent(self.alpha_u, self.lam2, self.num_features)
+            user_coef[user].fit(x, y, self.v)
 
-                # Fit the user models
-                user_idx = np.where(users == user)
-                user_coef[user].fit(x[user_idx], y[user_idx], self.v)
-
-                # Update c, d, v
-                self.c = self.c + np.dot(user_coef[user].theta, user_coef[user].theta)
-                d_update = (user_coef[user].theta * (y[user_idx] - np.dot(x[user_idx], user_coef[user].theta.reshape(-1, 1)))).T
-                self.d = self.d + d_update.T.reshape(1, -1)[0]
-                self.v = np.dot(np.linalg.inv(self.c), self.d)
+            # Update c, d, v
+            self.c = self.c + np.dot(user_coef[user].theta, user_coef[user].theta)
+            d_update = (user_coef[user].theta * (y - np.dot(x, user_coef[user].theta.reshape(-1, 1)))).T
+            self.d = self.d + d_update.T.reshape(1, -1)[0]
+            self.v = np.dot(np.linalg.inv(self.c), self.d)
 
 
     def predict(self, x, user, user_coef):
@@ -160,7 +159,6 @@ class HRidge:
 
         # Calculate the ridge regression predicted value, latent features modifier, and exploration modifier
         ridge = np.dot(self.v, user_coef[user].theta)
-
         latent = 0
 
         # If no latent features are found, set latent to 0
@@ -170,7 +168,7 @@ class HRidge:
             pass
 
         explore = self.alpha_a * np.sqrt(np.dot(np.dot(x.T, np.linalg.inv(self.c)), x))
-
+        #print(explore)
         prediction = ridge + latent + explore
 
         # Return predicted value and updated dictionary of user models
@@ -189,6 +187,7 @@ class UserLatent:
     def fit(self, x, y, v):
 
         # Update a, b, theta for the user
-        self.a = self.a + np.dot(v, v)
-        self.b = self.b + y * np.dot(x, v)
+        xv = np.dot(x, v)
+        self.a = self.a + np.dot(xv, xv)
+        self.b = self.b + y * xv
         self.theta = np.dot(np.linalg.inv(self.a), self.b)
