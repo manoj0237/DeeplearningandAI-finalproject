@@ -87,10 +87,10 @@ class DeepCollab:
                                  validation_split=0.2,
                                  callbacks=callbacks)
 
-    def predict(self, y_noisy, features, n):
+    def predict(self, y_noisy, features):
 
         if self.user_features:
-            predictions = self.autoencoder.predict((y_noisy, features), verbose=1)
+            predictions = self.autoencoder.predict([y_noisy, features], verbose=1)
         else:
             predictions = self.autoencoder.predict(y_noisy, verbose=1)
 
