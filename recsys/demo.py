@@ -53,7 +53,7 @@ class Demo:
             print('\n')
 
             user_and_content = self.user_features.join(self.content_features.drop('book_id', axis=1), how='right')
-            user_ratings = self.train_pivot[self.train_pivot['user_id'] == self.user_id]
+            user_ratings = self.train_pivot.loc[self.user_id]
 
             all_books = self.test_ratings[self.test_ratings['user_id'] == self.user_id]['book_id'].tolist()
             idx = [b - 1 for b in all_books]
@@ -61,7 +61,7 @@ class Demo:
             test_book_ratings = filter_books[filter_books['book_id'].isin(all_books)]['rating'].tolist()
             self.user_book_info = self.books[self.books['book_id'].isin(all_books)][['book_id', 'title', 'authors']]
 
-            self.predict_cf(user_ratings, idx, all_books, test_book_ratings)
+            self.predict_cf(user_ratings, idx, all_books, test_book_ratings, self.user_id)
             self.predict_lr(user_and_content, idx, all_books, test_book_ratings)
             self.predict_linucb(idx, all_books, test_book_ratings)
             self.predict_cdae(user_ratings, idx, all_books, test_book_ratings)
@@ -91,8 +91,24 @@ class Demo:
             self.predict_cdae(user_ratings, idx, all_books, test_book_ratings)
             self.predict_wd(user_and_content, idx, all_books, test_book_ratings)
 
-    def predict_cf(self, user_ratings, idx, all_books, test_book_ratings):
-        cf_predictions = self.cf.predict(user_ratings) # TODO
+    def predict_cf(self, user_ratings, idx, all_books, test_book_ratings, user_id):
+        input_data = [(user_id, book_id, rating) for (book_id, rating) in zip(all_books, test_book_ratings)]
+        cf_predictions = self.cf.test(input_data)
+        pred_list = [[uid, iid, true_r, est] for uid, iid, true_r, est, _ in cf_predictions]
+        df = pd.DataFrame(pred_list, columns=['user_id', 'book_id', 'rating', 'pred'])
+        df['pred_proba'] = df['pred'].apply(lambda x: x / 5)
+        df['pred'] = df['pred'].apply(lambda x: round(x))
+        df['binary_rating'] = df.apply(lambda x: 1 if x['rating'] > 3 else 0, axis=1)
+        df = df.sort_values(by='pred_proba')
+        df.reset_index(drop=True, inplace=True)
+        top_recs = min(len(df), 10)
+        df = df[:top_recs]
+        df = df.merge(self.user_book_info, on='book_id')
+        df = df[['user_id', 'book_id', 'title', 'authors', 'rating', 'binary_rating', 'pred_proba', 'pred']]
+
+        print('SVD Collaboration Filtering Recommendations')
+        print(df)
+        print('\n')
 
     def predict_lr(self, user_and_content, idx, all_books, test_book_ratings):
         lr_predictions = self.logistic.predict(np.asarray(user_and_content.drop(['user_id', 'book_id'], axis=1)))
