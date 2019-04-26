@@ -4,6 +4,7 @@ from surprise import SVD
 import pandas as pd
 import numpy as np
 import os
+import pickle
 
 from recsys.evaluate import top_n_5star_results, replay_5star_results
 
@@ -45,10 +46,24 @@ class CollaborativeFiltering:
         self._fit()
 
     def _fit(self):
-        print("fit staretd")
+        print("fit started")
         self.algo.fit(self.trainset)
-        print("validation staretd")
-        self._validate()
+
+        svd_model = 'svd_model.pkl'
+
+        # Open the file to save as pkl file
+        svd_model_pkl = open(svd_model, 'wb')
+        pickle.dump(self.algo, svd_model_pkl)
+        svd_model_pkl.close()
+
+        # Loading the saved decision tree model pickle
+        svd_model_pkl = open(svd_model, 'rb')
+        svd_model = pickle.load(svd_model_pkl)
+        input = [(80, 34, 0)]
+        print(svd_model.test(input))
+
+        print("validation started")
+        # self._validate()
 
     def _validate(self):
         self.predictions = self.algo.test(self.testset)

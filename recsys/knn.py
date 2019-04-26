@@ -5,6 +5,7 @@ from surprise import KNNBasic
 import pandas as pd
 import numpy as np
 import os
+import pickle
 
 from recsys.evaluate import top_n_5star_results, replay_5star_results
 
@@ -13,7 +14,7 @@ class CollaborativeFilteringKNN:
 
     def __init__(self):
         prod = False
-        self.ml = pd.read_csv("raw_top10M_ratings.csv",
+        self.ml = pd.read_csv("raw_top1M_ratings.csv",
                          header=0,
                          dtype={"user_id": np.int32, "book_id": np.int32, "rating": np.float32},
                          names=("user_id", "book_id", "rating"))
@@ -55,9 +56,23 @@ class CollaborativeFilteringKNN:
         self._fit()
 
     def _fit(self):
-        print("fit staretd")
+        print("fit started")
         self.algo.fit(self.trainset)
-        print("validation staretd")
+
+        knn_model = 'knn_model_1M.pkl'
+
+        # Open the file to save as pkl file
+        knn_model_pkl = open(knn_model, 'wb')
+        pickle.dump(self.algo, knn_model_pkl)
+        knn_model_pkl.close()
+
+        # Loading the saved decision tree model pickle
+        knn_model_pkl = open(knn_model, 'rb')
+        knn_model = pickle.load(knn_model_pkl)
+        input = [(80, 34, 0)]
+        print(knn_model.test(input))
+
+        print("validation started")
         self._validate()
 
     def _validate(self):
