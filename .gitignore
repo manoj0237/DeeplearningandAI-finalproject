@@ -3,8 +3,8 @@
 *.pyc
 *.txt
 
-glove6B/*
-
 # File too large
 raw_tokenized_features.csv
 final_scaled_book_features.csv
+models/cdae_binary.h5
+models/autoencoder_userfeatures_5star.h5
