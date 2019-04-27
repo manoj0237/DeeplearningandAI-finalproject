@@ -7,4 +7,4 @@
 #### Demo:
 https://ec2-52-91-237-109.compute-1.amazonaws.com:8888/notebooks/Demo.ipynb
 
-Please contact us for the password
+Please contact us for the password.
